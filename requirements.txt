@@ -4,3 +4,5 @@ spacy
 pillow
 pdf2image
 pdfplumber
+transformers
+torch
