@@ -1,34 +1,47 @@
 import streamlit as st
-import pdfplumber
-import fitz  # PyMuPDF
-from PIL import Image
-import io
+import os
+import sys
 
-st.title("PDF Text & Image Extractor")
+# Import modules
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+from app.ocr import extract_text_from_image, extract_text_from_pdf, summarize_text
+from app.ner import extract_entities
 
-# Upload PDF
-uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
+# Streamlit app config
+st.set_page_config(page_title="Smart Document Parser", layout="wide")
+st.title("📄 Smart Document Parser (OCR + NER + Summarization)")
 
-if uploaded_file is not None:
-    all_text = ""
+# File uploader: images + PDFs
+uploaded_file = st.file_uploader("Upload a document", type=["png", "jpg", "jpeg", "pdf"])
 
-    # Extract text using pdfplumber
-    with pdfplumber.open(uploaded_file) as pdf:
-        for i, page in enumerate(pdf.pages):
-            text = page.extract_text()
-            if text:
-                all_text += f"\n--- Page {i+1} ---\n{text}"
+if uploaded_file:
+    file_extension = uploaded_file.name.split(".")[-1].lower()
+    temp_file_path = os.path.join(os.getcwd(), f"temp_file.{file_extension}")
 
-    st.text_area("Extracted Text", all_text, height=300)
+    # Save uploaded file
+    with open(temp_file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-    # Extract images using PyMuPDF
-    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-    for page_index in range(len(doc)):
-        page = doc[page_index]
-        images = page.get_images(full=True)
-        for img_index, img in enumerate(images):
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            image_bytes = base_image["image"]
-            image = Image.open(io.BytesIO(image_bytes))
-            st.image(image, caption=f"Page {page_index+1} - Image {img_index+1}")
+    # Extract text depending on type
+    if file_extension in ["png", "jpg", "jpeg"]:
+        st.image(temp_file_path, caption="Uploaded Image", use_column_width=True)
+        text = extract_text_from_image(temp_file_path)
+    else:  # PDF
+        text = extract_text_from_pdf(temp_file_path)
+
+    # Show extracted text
+    st.subheader("📑 Extracted Text")
+    st.text_area("Full Text", text, height=300)
+
+    # Show summary
+    st.subheader("📝 Summary")
+    summary = summarize_text(text)
+    st.text_area("Summary", summary, height=200)
+
+    # Named Entity Recognition
+    st.subheader("🔍 Named Entities")
+    entities = extract_entities(text)
+    if entities:
+        st.table(entities)
+    else:
+        st.write("No entities found.")
