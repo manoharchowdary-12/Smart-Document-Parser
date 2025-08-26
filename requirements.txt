@@ -3,3 +3,4 @@ pytesseract
 spacy
 pillow
 pdf2image
+pdfplumber
