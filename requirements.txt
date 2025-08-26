@@ -2,3 +2,4 @@ streamlit
 pytesseract
 spacy
 pillow
+pdf2image
